@@ -1,0 +1,8 @@
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore database
+app/data/database.db
+
