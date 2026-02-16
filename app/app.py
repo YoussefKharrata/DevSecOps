@@ -8,6 +8,7 @@ app.secret_key = "SUPERSECRETKEY"  # intentionally hardcoded (for DevSecOps test
 # Database location (must already exist)
 DATABASE = "data/database.db"
 
+
 # ---------------------------
 # DB Helper Functions
 # ---------------------------
@@ -16,11 +17,13 @@ def get_db():
         g._database = sqlite3.connect(DATABASE)
     return g._database
 
+
 @app.teardown_appcontext
 def close_connection(exception):
     db = g.pop("_database", None)
     if db is not None:
         db.close()
+
 
 # ---------------------------
 # Routes
@@ -28,6 +31,7 @@ def close_connection(exception):
 @app.route("/")
 def home():
     return redirect(url_for("login"))
+
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -39,8 +43,10 @@ def register():
         db = get_db()
         try:
             db.execute(
-                f"INSERT INTO users(username, password, role) VALUES('{username}','{password}','{role}')"
+                "INSERT INTO users(username, password, role) VALUES (?, ?, ?)",
+                (username, password, role),
             )
+
             db.commit()
             return redirect(url_for("login"))
         except sqlite3.IntegrityError:
@@ -77,9 +83,7 @@ def dashboard():
         return redirect(url_for("login"))
 
     return render_template(
-        "dashboard.html",
-        username=session["user"],
-        role=session["role"]
+        "dashboard.html", username=session["user"], role=session["role"]
     )
 
 
