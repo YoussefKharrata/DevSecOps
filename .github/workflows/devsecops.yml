@@ -1,0 +1,40 @@
+name: DevSecOps Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout your code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2️⃣ Set up Python
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # 3️⃣ Install dependencies for pre-commit
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      # 4️⃣ Run pre-commit hooks (lint, bandit, secrets)
+      - name: Run pre-commit hooks
+        run: pre-commit run --all-files
+
+      # 5️⃣ Set up Docker (pre-installed on runner)
+      - name: Build Docker image
+        run: docker build -t secure-portal ./docker
+
+      # 6️⃣ Scan Docker image with Trivy for vulnerabilities
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: secure-portal
