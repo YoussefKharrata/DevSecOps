@@ -3,9 +3,10 @@ import sqlite3
 import os
 
 app = Flask(__name__)
-app.secret_key = "SUPERSECRETKEY"  # intentionally hardcoded (for DevSecOps testing)
+app.secret_key = os.environ.get(
+    "SECRET_KEY", "devsecret"
+)  # Use env var, fallback for dev
 
-# Database location (must already exist)
 DATABASE = "data/database.db"
 
 
@@ -13,14 +14,15 @@ DATABASE = "data/database.db"
 # DB Helper Functions
 # ---------------------------
 def get_db():
-    if "_database" not in g:
-        g._database = sqlite3.connect(DATABASE)
-    return g._database
+    db = getattr(g, "_database", None)
+    if db is None:
+        db = g._database = sqlite3.connect(DATABASE)
+    return db
 
 
 @app.teardown_appcontext
 def close_connection(exception):
-    db = g.pop("_database", None)
+    db = getattr(g, "_database", None)
     if db is not None:
         db.close()
 
@@ -37,21 +39,18 @@ def home():
 def register():
     if request.method == "POST":
         username = request.form["username"]
-        password = request.form["password"]  # intentionally plain text
+        password = request.form["password"]  # plain text for now
         role = "user"
-
         db = get_db()
         try:
             db.execute(
-                "INSERT INTO users(username, password, role) VALUES (?, ?, ?)",
+                "INSERT INTO users(username, password, role) VALUES(?, ?, ?)",
                 (username, password, role),
             )
-
             db.commit()
             return redirect(url_for("login"))
         except sqlite3.IntegrityError:
             return "Username already exists!"
-
     return render_template("register.html")
 
 
@@ -60,20 +59,17 @@ def login():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
-
         db = get_db()
         cursor = db.execute(
-            f"SELECT * FROM users WHERE username='{username}' AND password='{password}'"
+            "SELECT * FROM users WHERE username=? AND password=?", (username, password)
         )
         user = cursor.fetchone()
-
         if user:
             session["user"] = user[1]
             session["role"] = user[3]
             return redirect(url_for("dashboard"))
         else:
             return "Invalid credentials!"
-
     return render_template("login.html")
 
 
@@ -81,7 +77,6 @@ def login():
 def dashboard():
     if "user" not in session:
         return redirect(url_for("login"))
-
     return render_template(
         "dashboard.html", username=session["user"], role=session["role"]
     )
@@ -91,10 +86,8 @@ def dashboard():
 def admin():
     if session.get("role") != "admin":
         return "Access denied!"
-
     db = get_db()
     users = db.execute("SELECT id, username, role FROM users").fetchall()
-
     return render_template("admin.html", users=users)
 
 
@@ -104,11 +97,6 @@ def logout():
     return redirect(url_for("login"))
 
 
-# ---------------------------
-# App Start
-# ---------------------------
 if __name__ == "__main__":
-    # Ensure data folder exists (does NOT create DB schema)
-    os.makedirs("data", exist_ok=True)
-
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() in ("true", "1", "yes")
+    app.run(host="0.0.0.0", port=5000, debug=debug_mode)
