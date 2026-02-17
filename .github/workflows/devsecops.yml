@@ -31,7 +31,8 @@ jobs:
 
       # 5️⃣ Set up Docker (pre-installed on runner)
       - name: Build Docker image
-        run: docker build -t secure-portal ./docker
+        run: docker build -t secure-portal -f docker/Dockerfile .
+
 
       # 6️⃣ Scan Docker image with Trivy for vulnerabilities
       - name: Scan Docker image with Trivy
