@@ -36,7 +36,7 @@ jobs:
         run: python security/check_debug_mode.py
 
       - name: Run SQL Injection Pattern Check
-        run: python security/check_sql_patterns.py
+        run: python security/check_sql_injection.py
 
       - name: Generate Security Report
         run: python security/generate_report.py
