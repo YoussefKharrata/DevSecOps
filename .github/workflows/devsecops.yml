@@ -11,31 +11,70 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout your code
+      # 1️⃣ Checkout code
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2️⃣ Set up Python
+      # 2️⃣ Setup Python
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # 3️⃣ Install dependencies for pre-commit
+      # 3️⃣ Install pre-commit
       - name: Install pre-commit
         run: pip install pre-commit
 
-      # 4️⃣ Run pre-commit hooks (lint, bandit, secrets)
+      # 4️⃣ Run pre-commit hooks
       - name: Run pre-commit hooks
         run: pre-commit run --all-files
 
-      # 5️⃣ Set up Docker (pre-installed on runner)
+      # -------------------------
+      # 🛡 Custom Security Checks
+      # -------------------------
+      - name: Run Debug Mode Check
+        run: python security/check_debug_mode.py
+
+      - name: Run SQL Injection Pattern Check
+        run: python security/check_sql_patterns.py
+
+      - name: Generate Security Report
+        run: python security/generate_report.py
+
+      - name: Upload Security Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          path: security/report.json
+
+      # -------------------------
+      # 🐳 Build Docker Image
+      # -------------------------
       - name: Build Docker image
         run: docker build -t secure-portal -f docker/Dockerfile .
 
-
-      # 6️⃣ Scan Docker image with Trivy for vulnerabilities
+      # -------------------------
+      # 🔍 Scan Docker Image
+      # -------------------------
       - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: secure-portal
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+
+      # -------------------------
+      # 🚀 Push to Docker Hub
+      # -------------------------
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Tag Docker image
+        run: docker tag secure-portal ${{ secrets.DOCKER_USERNAME }}/secure-portal:latest
+
+      - name: Push Docker image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/secure-portal:latest
